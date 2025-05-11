@@ -23,6 +23,13 @@
     "service_worker": "background.js",
     "type": "module"
   },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "css": ["style.css"],
+      "js": ["cpp/matcher.js", "content.js"]
+    }
+  ],
   "web_accessible_resources": [
     {
       "resources": ["wasm/*", "cpp/*"],
