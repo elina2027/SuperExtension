@@ -48,6 +48,8 @@ async function sendMessageWithRetry(tabId, message, maxRetries = 2) {
   }
 }
 
+let timerInterval = null;
+
 document.getElementById('highlight').onclick = async () => {
   const word1 = document.getElementById('word1').value.trim();
   const gap = parseInt(document.getElementById('gap').value, 10);
@@ -66,7 +68,21 @@ document.getElementById('highlight').onclick = async () => {
   
   // Reset match counter and show loading state
   const matchesElement = document.getElementById('matches');
+  const timingElement = document.getElementById('timing');
   matchesElement.textContent = 'Searching...';
+  
+  // Clear any existing timer
+  if (timerInterval) {
+    clearInterval(timerInterval);
+  }
+  
+  // Start timing
+  const startTime = performance.now();
+  timerInterval = setInterval(() => {
+    const currentTime = performance.now();
+    const elapsedSeconds = ((currentTime - startTime) / 1000).toFixed(2);
+    timingElement.textContent = `Time: ${elapsedSeconds}s`;
+  }, 10); // Update every 10ms for smooth display
   
   try {
     // Get current tab
@@ -86,6 +102,17 @@ document.getElementById('highlight').onclick = async () => {
     // Try to send message with automatic retries
     const response = await sendMessageWithRetry(tab.id, {word1, gap, word2});
     
+    // Stop the timer
+    if (timerInterval) {
+      clearInterval(timerInterval);
+      timerInterval = null;
+    }
+    
+    // Calculate final time
+    const endTime = performance.now();
+    const finalTime = ((endTime - startTime) / 1000).toFixed(2);
+    timingElement.textContent = `Time: ${finalTime}s`;
+    
     if (response && response.error) {
       throw new Error(response.error);
     }
@@ -99,8 +126,15 @@ document.getElementById('highlight').onclick = async () => {
       matchesElement.textContent = 'No matches found';
     }
   } catch (error) {
+    // Stop the timer on error
+    if (timerInterval) {
+      clearInterval(timerInterval);
+      timerInterval = null;
+    }
+    
     console.error('Error:', error);
     matchesElement.textContent = 'Error occurred';
+    timingElement.textContent = 'Time: 0.00s';
 
     if (error.message === 'RESTRICTED_PAGE') {
       alert('This extension cannot run on Chrome system pages. Please try on a regular webpage.');
@@ -125,6 +159,12 @@ document.getElementById('highlight').onclick = async () => {
 
 document.getElementById('clean').onclick = async () => {
   try {
+    // Clear any existing timer
+    if (timerInterval) {
+      clearInterval(timerInterval);
+      timerInterval = null;
+    }
+    
     // Get current tab
     const [tab] = await chrome.tabs.query({active: true, currentWindow: true});
     
@@ -145,6 +185,7 @@ document.getElementById('clean').onclick = async () => {
     document.getElementById('word2').value = '';
     document.getElementById('gap').value = '20';
     document.getElementById('matches').textContent = 'Matches found: 0';
+    document.getElementById('timing').textContent = 'Time: 0.00s';
   } catch (error) {
     console.error('Error during cleanup:', error);
     if (error.message === 'RESTRICTED_PAGE') {
