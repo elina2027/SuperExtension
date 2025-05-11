@@ -8,13 +8,16 @@ body {
   font-family: sans-serif;
 }
 .match-counter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   font-size: 14px;
   color: #333;
   margin-bottom: 8px;
   padding: 4px;
   background: #f5f5f5;
   border-radius: 4px;
-  text-align: center;
 }
 .timing-info {
   font-size: 12px;
@@ -54,4 +57,27 @@ button:hover {
   color: black;
   border-radius: 2px;
   padding: 0 2px;
+}
+
+/* Spinner styles */
+.spinner {
+  display: none;
+  width: 20px;
+  height: 20px;
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #4fc3f7;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.searching .spinner {
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: 8px;
 } 

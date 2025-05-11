@@ -68,8 +68,10 @@ document.getElementById('highlight').onclick = async () => {
   
   // Reset match counter and show loading state
   const matchesElement = document.getElementById('matches');
+  const matchTextElement = document.getElementById('match-text');
   const timingElement = document.getElementById('timing');
-  matchesElement.textContent = 'Searching...';
+  matchTextElement.textContent = 'Searching...';
+  matchesElement.classList.add('searching');
   
   // Clear any existing timer
   if (timerInterval) {
@@ -82,7 +84,7 @@ document.getElementById('highlight').onclick = async () => {
     const currentTime = performance.now();
     const elapsedSeconds = ((currentTime - startTime) / 1000).toFixed(2);
     timingElement.textContent = `Time: ${elapsedSeconds}s`;
-  }, 10); // Update every 10ms for smooth display
+  }, 10);
   
   try {
     // Get current tab
@@ -113,17 +115,20 @@ document.getElementById('highlight').onclick = async () => {
     const finalTime = ((endTime - startTime) / 1000).toFixed(2);
     timingElement.textContent = `Time: ${finalTime}s`;
     
+    // Hide spinner
+    matchesElement.classList.remove('searching');
+    
     if (response && response.error) {
       throw new Error(response.error);
     }
 
     if (response && typeof response.matchCount === 'number') {
-      matchesElement.textContent = 
+      matchTextElement.textContent = 
         `Matches found: ${response.matchCount}` + 
         (response.highlightCount !== undefined ? 
           ` (${response.highlightCount} highlighted)` : '');
     } else {
-      matchesElement.textContent = 'No matches found';
+      matchTextElement.textContent = 'No matches found';
     }
   } catch (error) {
     // Stop the timer on error
@@ -133,8 +138,9 @@ document.getElementById('highlight').onclick = async () => {
     }
     
     console.error('Error:', error);
-    matchesElement.textContent = 'Error occurred';
+    matchTextElement.textContent = 'Error occurred';
     timingElement.textContent = 'Time: 0.00s';
+    matchesElement.classList.remove('searching');
 
     if (error.message === 'RESTRICTED_PAGE') {
       alert('This extension cannot run on Chrome system pages. Please try on a regular webpage.');
@@ -184,8 +190,9 @@ document.getElementById('clean').onclick = async () => {
     document.getElementById('word1').value = '';
     document.getElementById('word2').value = '';
     document.getElementById('gap').value = '20';
-    document.getElementById('matches').textContent = 'Matches found: 0';
+    document.getElementById('match-text').textContent = 'Matches found: 0';
     document.getElementById('timing').textContent = 'Time: 0.00s';
+    document.getElementById('matches').classList.remove('searching');
   } catch (error) {
     console.error('Error during cleanup:', error);
     if (error.message === 'RESTRICTED_PAGE') {

@@ -4,7 +4,10 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div id="matches" class="match-counter">Matches found: 0</div>
+  <div id="matches" class="match-counter">
+    <span id="match-text">Matches found: 0</span>
+    <div class="spinner"></div>
+  </div>
   <div id="timing" class="timing-info">Time: 0.00s</div>
   <input id="word1" placeholder="Word 1">
   <input id="gap" type="number" min="0" value="20" placeholder="Gap">
