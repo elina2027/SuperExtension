@@ -1,52 +1,72 @@
-// Keep track of tabs where scripts are injected
-const injectedTabs = new Set();
+// Keep track of injected tabs
+const INJECTED_TABS = new Set();
 
-// Inject content scripts when extension is installed
+// Function to inject scripts into a tab
+async function injectScripts(tabId, url) {
+  if (INJECTED_TABS.has(tabId)) {
+    console.log('Scripts already injected in tab:', tabId);
+    return;
+  }
+
+  if (!url || url.startsWith('chrome://') || url.startsWith('chrome-extension://')) {
+    console.log('Skipping injection for restricted page:', url);
+    return;
+  }
+
+  console.log('Injecting scripts into tab:', tabId, url);
+
+  try {
+    // First inject matcher.js
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      files: ['cpp/matcher.js']
+    });
+
+    // Then inject content script
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      files: ['content.js']
+    });
+
+    INJECTED_TABS.add(tabId);
+    console.log('Scripts successfully injected into tab:', tabId);
+  } catch (error) {
+    console.error('Error injecting scripts:', error);
+  }
+}
+
+// Listen for installation
 chrome.runtime.onInstalled.addListener(() => {
   console.log('Extension installed');
-  // Clear the injected tabs set on installation
-  injectedTabs.clear();
+  INJECTED_TABS.clear();
 });
 
-// Inject scripts when tab is updated
+// Listen for tab updates
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
-  if (changeInfo.status === 'complete' && tab.url && 
-      !tab.url.startsWith('chrome://') && 
-      !tab.url.startsWith('chrome-extension://')) {
-    
-    // Check if scripts are already injected
-    if (injectedTabs.has(tabId)) {
-      console.log('Scripts already injected in tab:', tabId);
-      return;
-    }
-    
-    console.log('Injecting scripts into tab:', tab.url);
-    
-    try {
-      // First inject the matcher.js
-      await chrome.scripting.executeScript({
-        target: { tabId },
-        files: ['cpp/matcher.js']
-      });
-      
-      // Then inject the content script
-      await chrome.scripting.executeScript({
-        target: { tabId },
-        files: ['content.js']
-      });
-      
-      // Mark this tab as injected
-      injectedTabs.add(tabId);
-      console.log('Scripts injected successfully');
-    } catch (error) {
-      console.error('Error injecting scripts:', error);
-    }
+  if (changeInfo.status === 'complete') {
+    await injectScripts(tabId, tab.url);
   }
 });
 
-// Clean up when tabs are closed
+// Listen for tab removal
 chrome.tabs.onRemoved.addListener((tabId) => {
-  injectedTabs.delete(tabId);
+  INJECTED_TABS.delete(tabId);
+});
+
+// Listen for messages from popup
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === 'ENSURE_INJECTION') {
+    const { tabId } = message;
+    chrome.tabs.get(tabId, async (tab) => {
+      if (chrome.runtime.lastError) {
+        sendResponse({ success: false, error: chrome.runtime.lastError.message });
+        return;
+      }
+      await injectScripts(tabId, tab.url);
+      sendResponse({ success: true });
+    });
+    return true; // Will respond asynchronously
+  }
 });
 
 // Listen for errors

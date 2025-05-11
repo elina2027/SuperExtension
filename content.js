@@ -15,12 +15,23 @@ async function loadWasm() {
       
       // Wait for the script to load
       await new Promise((resolve, reject) => {
-        script.onload = resolve;
-        script.onerror = reject;
+        script.onload = () => {
+          console.log('matcher.js loaded successfully');
+          resolve();
+        };
+        script.onerror = (error) => {
+          console.error('Error loading matcher.js:', error);
+          reject(error);
+        };
         (document.head || document.documentElement).appendChild(script);
       });
 
+      if (typeof MatcherModule === 'undefined') {
+        throw new Error('MatcherModule not found after script load');
+      }
+
       // Initialize the WASM module
+      console.log('Initializing WASM module...');
       matcherModule = await MatcherModule({
         locateFile: (path) => {
           const wasmUrl = chrome.runtime.getURL('wasm/' + path);
@@ -30,6 +41,11 @@ async function loadWasm() {
       });
       
       console.log('WASM module loaded successfully');
+      
+      // Test if the find_matches function exists
+      if (typeof matcherModule.find_matches !== 'function') {
+        throw new Error('find_matches function not found in WASM module');
+      }
     } catch (error) {
       console.error('Detailed WASM loading error:', error);
       chrome.runtime.sendMessage({
@@ -47,7 +63,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   console.log('Received message:', msg);
   
   if (!msg.word1 || !msg.word2 || isNaN(msg.gap)) {
-    console.log('Invalid input parameters');
+    console.log('Invalid input parameters:', { word1: msg.word1, word2: msg.word2, gap: msg.gap });
     sendResponse({matchCount: 0, error: 'Invalid input parameters'});
     return true;
   }
@@ -61,12 +77,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       }
 
       const text = document.body.innerText;
-      console.log('Processing text of length:', text.length);
+      console.log('Processing text length:', text.length, 'words:', msg.word1, msg.word2, 'gap:', msg.gap);
       
-      if (!matcher.find_matches) {
-        throw new Error('find_matches function not found in WASM module');
-      }
-
       const matches = matcher.find_matches(text, msg.word1, msg.gap, msg.word2);
       console.log('Found matches:', matches ? matches.length : 0);
 
@@ -82,6 +94,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       });
 
       if (!matches || matches.length === 0) {
+        console.log('No matches found');
         sendResponse({matchCount: 0});
         return;
       }
@@ -113,35 +126,39 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       let successfulHighlights = 0;
       // Process each match
       for (const match of matches) {
-        const matchStart = match.start;
-        const matchEnd = match.end;
+        try {
+          const matchStart = match.start;
+          const matchEnd = match.end;
 
-        // Find nodes that contain this match
-        const relevantNodes = textNodes.filter(({start, end}) => 
-          (start <= matchStart && matchStart < end) ||
-          (start < matchEnd && matchEnd <= end) ||
-          (matchStart <= start && end <= matchEnd)
-        );
+          // Find nodes that contain this match
+          const relevantNodes = textNodes.filter(({start, end}) => 
+            (start <= matchStart && matchStart < end) ||
+            (start < matchEnd && matchEnd <= end) ||
+            (matchStart <= start && end <= matchEnd)
+          );
 
-        for (const {node, start} of relevantNodes) {
-          try {
-            const nodeText = node.textContent;
-            const localStart = Math.max(0, matchStart - start);
-            const localEnd = Math.min(nodeText.length, matchEnd - start);
+          for (const {node, start} of relevantNodes) {
+            try {
+              const nodeText = node.textContent;
+              const localStart = Math.max(0, matchStart - start);
+              const localEnd = Math.min(nodeText.length, matchEnd - start);
 
-            if (localStart >= localEnd) continue;
+              if (localStart >= localEnd) continue;
 
-            const range = document.createRange();
-            range.setStart(node, localStart);
-            range.setEnd(node, localEnd);
+              const range = document.createRange();
+              range.setStart(node, localStart);
+              range.setEnd(node, localEnd);
 
-            const span = document.createElement('span');
-            span.className = 'word-gap-highlight';
-            range.surroundContents(span);
-            successfulHighlights++;
-          } catch (error) {
-            console.error('Error highlighting match:', error);
+              const span = document.createElement('span');
+              span.className = 'word-gap-highlight';
+              range.surroundContents(span);
+              successfulHighlights++;
+            } catch (error) {
+              console.error('Error highlighting specific node:', error);
+            }
           }
+        } catch (error) {
+          console.error('Error processing match:', error);
         }
       }
 
