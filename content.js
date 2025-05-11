@@ -58,9 +58,30 @@ async function loadWasm() {
   return matcherModule;
 }
 
+// Function to clean all highlights
+function cleanHighlights() {
+  const highlights = document.querySelectorAll('.word-gap-highlight');
+  highlights.forEach(e => {
+    const parent = e.parentNode;
+    if (parent) {
+      parent.replaceChild(document.createTextNode(e.textContent), e);
+      parent.normalize();
+    }
+  });
+  return highlights.length;
+}
+
 // Listen for messages from popup
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   console.log('Received message:', msg);
+  
+  // Handle clean action
+  if (msg.action === 'clean') {
+    const removedCount = cleanHighlights();
+    console.log('Cleaned up highlights:', removedCount);
+    sendResponse({ success: true, removedCount });
+    return true;
+  }
   
   if (!msg.word1 || !msg.word2 || isNaN(msg.gap)) {
     console.log('Invalid input parameters:', { word1: msg.word1, word2: msg.word2, gap: msg.gap });

@@ -121,4 +121,36 @@ document.getElementById('highlight').onclick = async () => {
       }
     }
   }
+};
+
+document.getElementById('clean').onclick = async () => {
+  try {
+    // Get current tab
+    const [tab] = await chrome.tabs.query({active: true, currentWindow: true});
+    
+    if (!tab || !tab.id) {
+      throw new Error('Could not find active tab');
+    }
+
+    // Check if we can inject scripts
+    if (tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://')) {
+      throw new Error('RESTRICTED_PAGE');
+    }
+
+    // Send clean message to content script
+    await sendMessageWithRetry(tab.id, { action: 'clean' });
+    
+    // Reset the input fields and match counter
+    document.getElementById('word1').value = '';
+    document.getElementById('word2').value = '';
+    document.getElementById('gap').value = '20';
+    document.getElementById('matches').textContent = 'Matches found: 0';
+  } catch (error) {
+    console.error('Error during cleanup:', error);
+    if (error.message === 'RESTRICTED_PAGE') {
+      alert('This extension cannot run on Chrome system pages.');
+    } else {
+      alert('Please refresh the page and try again.');
+    }
+  }
 }; 

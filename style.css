@@ -20,16 +20,27 @@ input {
   padding: 4px;
   font-size: 14px;
 }
+.button-container {
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+}
 button {
+  flex: 1;
   padding: 6px;
   font-size: 14px;
-  background: #ffd600;
   border: none;
   border-radius: 4px;
   cursor: pointer;
 }
+#highlight {
+  background: #ffd600;
+}
+#clean {
+  background: #e0e0e0;
+}
 button:hover {
-  background: #ffed4a;
+  filter: brightness(1.1);
 }
 .word-gap-highlight {
   background: yellow;
